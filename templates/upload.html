@@ -1,0 +1,430 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Upload — Henry's Unblocked Games</title>
+<link rel="stylesheet" href="/static/css/style.css">
+<style>
+.upload-tabs{display:flex;gap:6px;margin-bottom:22px;border-bottom:1px solid var(--border);}
+.upload-tabs button{background:none;border:none;color:var(--muted);font-family:var(--font-mono);font-size:13px;padding:10px 16px;cursor:pointer;border-bottom:2px solid transparent;}
+.upload-tabs button.active{color:var(--accent);border-bottom-color:var(--accent);}
+
+.queue-list{display:flex;flex-direction:column;gap:10px;margin-top:18px;max-height:460px;overflow-y:auto;}
+.queue-item{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;}
+.queue-item .qi-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px;}
+.queue-item .qi-name{font-size:13px;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.queue-item .qi-size{font-family:var(--font-mono);font-size:11px;color:var(--muted);}
+.queue-item .qi-status{font-family:var(--font-mono);font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--border);}
+.queue-item .qi-status.pending{color:var(--muted);}
+.queue-item .qi-status.uploading{color:var(--warn);border-color:var(--warn);}
+.queue-item .qi-status.done{color:var(--accent);border-color:var(--accent-dim);}
+.queue-item .qi-status.error{color:var(--danger);border-color:var(--danger);}
+.queue-item .qi-bar-wrap{background:var(--bg);border-radius:6px;overflow:hidden;height:6px;}
+.queue-item .qi-bar{height:100%;background:var(--accent);width:0%;transition:width .2s;}
+.queue-item .qi-title-input{width:100%;margin-top:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:12px;}
+.queue-summary{display:flex;gap:14px;font-family:var(--font-mono);font-size:12px;color:var(--muted);margin-top:14px;flex-wrap:wrap;}
+.dropzone{border:2px dashed var(--border);border-radius:var(--radius);padding:36px 20px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s;}
+.dropzone:hover,.dropzone.drag{border-color:var(--accent);background:rgba(57,255,136,.04);}
+.dropzone .dz-icon{font-size:32px;margin-bottom:10px;}
+.dropzone p{margin:4px 0;color:var(--muted);font-size:13px;}
+</style>
+</head><body>
+<header class="site-header"><nav class="nav container">
+  <a href="/" class="logo-henry"><span class="cursor"></span><span class="h-name">HENRY'S</span>&nbsp;UNBLOCKED GAMES</a>
+  <div class="nav-links" id="nav-links"></div>
+</nav></header>
+<div class="container">
+  <div class="card wide">
+    <h2>Upload Games</h2>
+    <div class="upload-tabs">
+      <button class="active" data-tab="single">Single Upload</button>
+      <button data-tab="mass">Mass Upload</button>
+      <button data-tab="folder">📁 Folder Upload</button>
+    </div>
+
+    <!-- ── SINGLE UPLOAD ── -->
+    <div id="tab-single">
+      <div id="msg"></div>
+      <form id="f">
+        <div class="field">
+          <label>Game file (.html, .htm, .js, .zip)</label>
+          <input id="file" type="file" accept=".html,.htm,.js,.zip" required>
+        </div>
+        <div class="field">
+          <label>Title <span style="color:var(--muted);font-weight:400">(auto-filled from filename)</span></label>
+          <input id="title" maxlength="80" required placeholder="Game title">
+        </div>
+        <div class="field">
+          <label>Description (optional)</label>
+          <textarea id="desc" maxlength="500" placeholder="Short description…"></textarea>
+        </div>
+        <div class="field">
+          <label>Icon image URL (optional)</label>
+          <input id="icon" type="url" placeholder="https://example.com/icon.png">
+          <div id="icon-preview" style="margin-top:8px;display:none;">
+            <img id="icon-img" style="width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--border);">
+          </div>
+        </div>
+        <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:18px;font-size:13px;color:var(--muted);">
+          <strong style="color:var(--text);">Accepted:</strong> .html/.htm (self-contained) · .js (game bundle) · .zip (with index.html inside) · Max <strong style="color:var(--text);">5 GB</strong>
+        </div>
+        <div id="progress-wrap" style="display:none;margin-bottom:14px;">
+          <div style="font-family:var(--font-mono);font-size:12px;color:var(--muted);margin-bottom:6px;" id="progress-label">Uploading…</div>
+          <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:6px;overflow:hidden;height:8px;">
+            <div id="progress-bar" style="height:100%;background:var(--accent);width:0%;transition:width .3s;"></div>
+          </div>
+        </div>
+        <button class="btn primary" id="btn" type="submit">Upload game</button>
+      </form>
+    </div>
+
+    <!-- ── MASS UPLOAD ── -->
+    <div id="tab-mass" style="display:none;">
+      <div class="dropzone" id="dropzone">
+        <div class="dz-icon">📂</div>
+        <p><strong style="color:var(--text)">Click to select files</strong> or drag & drop them here</p>
+        <p>Select multiple .html, .htm, .js, or .zip files at once. Each becomes its own game, title auto-filled from filename.</p>
+        <input id="mass-file-input" type="file" accept=".html,.htm,.js,.zip" multiple style="display:none;">
+      </div>
+
+      <div class="queue-summary" id="queue-summary" style="display:none;">
+        <span id="qs-count">0 files</span>
+        <span id="qs-done">0 uploaded</span>
+        <span id="qs-errors">0 failed</span>
+      </div>
+
+      <div class="queue-list" id="queue-list"></div>
+
+      <div style="display:flex;gap:10px;margin-top:18px;" id="mass-actions" style="display:none;">
+        <button class="btn primary" id="mass-start" style="display:none;">▶ Start Upload</button>
+        <button class="btn" id="mass-clear" style="display:none;">Clear Queue</button>
+      </div>
+    </div>
+
+    <!-- ── FOLDER UPLOAD ── -->
+    <div id="tab-folder" style="display:none;">
+      <div id="folder-msg"></div>
+      <div class="dropzone" id="folder-dropzone" style="margin-bottom:14px;">
+        <div class="dz-icon">📁</div>
+        <p><strong style="color:var(--text)">Click to select a folder</strong> or drag & drop a folder here</p>
+        <p>Uploads the entire folder — great for multi-file games with assets, JS bundles, etc. Needs an <code>index.html</code> inside.</p>
+        <input id="folder-input" type="file" webkitdirectory multiple style="display:none;">
+      </div>
+      <div id="folder-info" style="display:none;">
+        <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:14px;font-family:var(--font-mono);font-size:12px;margin-bottom:14px;">
+          <div style="color:var(--muted)">Folder selected:</div>
+          <div id="folder-name" style="color:var(--text);margin-top:4px;font-size:14px;"></div>
+          <div id="folder-stats" style="color:var(--muted);margin-top:4px;"></div>
+        </div>
+        <div class="field"><label>Game title</label><input id="folder-title" maxlength="80" placeholder="Game title"></div>
+        <div class="field"><label>Description (optional)</label><textarea id="folder-desc" maxlength="500" placeholder="Short description…"></textarea></div>
+        <div class="field"><label>Icon URL (optional)</label><input id="folder-icon" type="url" placeholder="https://…"></div>
+        <div id="folder-progress-wrap" style="display:none;margin-bottom:14px;">
+          <div style="font-family:var(--font-mono);font-size:12px;color:var(--muted);margin-bottom:6px;" id="folder-progress-label">Uploading…</div>
+          <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:6px;overflow:hidden;height:8px;">
+            <div id="folder-progress-bar" style="height:100%;background:var(--accent);width:0%;transition:width .3s;"></div>
+          </div>
+        </div>
+        <button class="btn primary" id="folder-btn">Upload Folder</button>
+        <button class="btn" id="folder-clear" style="margin-left:8px;">Clear</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="/static/js/app.js"></script>
+<script>
+(async()=>{
+  const me=await getMe();
+  if(!me||(me.role!=='trusted'&&me.role!=='admin')){
+    document.querySelector('.card').innerHTML='<p class="hint" style="text-align:center">You need a <strong>trusted</strong> or <strong>admin</strong> account to upload games.</p>';
+    return;
+  }
+  renderHeader('/upload.html');
+})();
+
+// ── Tabs ──────────────────────────────────────────────────────────────────
+document.querySelectorAll('.upload-tabs button').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.upload-tabs button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-single').style.display = btn.dataset.tab==='single' ? '' : 'none';
+    document.getElementById('tab-mass').style.display = btn.dataset.tab==='mass' ? '' : 'none';
+    document.getElementById('tab-folder').style.display = btn.dataset.tab==='folder' ? '' : 'none';
+  });
+});
+
+// ── Single upload (unchanged behavior) ──────────────────────────────────────
+document.getElementById('file').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if(!file) return;
+  const titleInput = document.getElementById('title');
+  if(!titleInput.value) titleInput.value = titleFromFilename(file.name);
+});
+document.getElementById('icon').addEventListener('input', e => {
+  const url = e.target.value.trim();
+  const preview = document.getElementById('icon-preview');
+  const img = document.getElementById('icon-img');
+  if(url){ img.src=url; preview.style.display=''; img.onerror=()=>preview.style.display='none'; }
+  else preview.style.display='none';
+});
+document.getElementById('f').addEventListener('submit', e => {
+  e.preventDefault();
+  const msg=document.getElementById('msg'); msg.innerHTML='';
+  const btn=document.getElementById('btn');
+  const file=document.getElementById('file').files[0];
+  if(!file)return;
+  btn.disabled=true; btn.textContent='Uploading…';
+  document.getElementById('progress-wrap').style.display='';
+  const fd=new FormData();
+  fd.append('title',document.getElementById('title').value);
+  fd.append('description',document.getElementById('desc').value);
+  fd.append('icon',document.getElementById('icon').value);
+  fd.append('gamefile',file);
+  const xhr=new XMLHttpRequest();
+  xhr.open('POST','/api/games'); xhr.withCredentials=true;
+  xhr.upload.addEventListener('progress',ev=>{
+    if(ev.lengthComputable){
+      const pct=Math.round(ev.loaded/ev.total*100);
+      document.getElementById('progress-bar').style.width=pct+'%';
+      const mb=n=>Math.round(n/1024/1024*10)/10;
+      document.getElementById('progress-label').textContent=`Uploading… ${mb(ev.loaded)} MB / ${mb(ev.total)} MB (${pct}%)`;
+    }
+  });
+  xhr.addEventListener('load',()=>{
+    btn.disabled=false; btn.textContent='Upload game';
+    document.getElementById('progress-wrap').style.display='none';
+    try{
+      const data=JSON.parse(xhr.responseText);
+      if(xhr.status>=400)throw new Error(data.error||'Upload failed');
+      msg.appendChild(el('div',{class:'msg ok',text:data.approved?'✅ Published!':'✅ Uploaded — waiting for admin approval.'}));
+      document.getElementById('f').reset();
+      document.getElementById('icon-preview').style.display='none';
+    }catch(err){msg.appendChild(el('div',{class:'msg error',text:err.message}));}
+  });
+  xhr.addEventListener('error',()=>{btn.disabled=false;btn.textContent='Upload game';document.getElementById('progress-wrap').style.display='none';msg.appendChild(el('div',{class:'msg error',text:'Network error.'}));});
+  xhr.send(fd);
+});
+
+// ── Mass upload ──────────────────────────────────────────────────────────
+let queue = []; // { file, title, status, xhr, rowEl, barEl, statusEl }
+const ALLOWED_EXT = ['.html','.htm','.js','.zip'];
+
+function fmtBytes(n){
+  if(n < 1024*1024) return Math.round(n/1024*10)/10 + ' KB';
+  if(n < 1024*1024*1024) return Math.round(n/1024/1024*10)/10 + ' MB';
+  return Math.round(n/1024/1024/1024*100)/100 + ' GB';
+}
+
+function addFilesToQueue(fileList){
+  const files = Array.from(fileList).filter(f => ALLOWED_EXT.some(ext => f.name.toLowerCase().endsWith(ext)));
+  for(const file of files){
+    queue.push({ file, title: titleFromFilename(file.name), status: 'pending' });
+  }
+  renderQueue();
+}
+
+function renderQueue(){
+  const list = document.getElementById('queue-list');
+  list.innerHTML = '';
+  document.getElementById('queue-summary').style.display = queue.length ? 'flex' : 'none';
+  document.getElementById('mass-start').style.display = queue.length ? '' : 'none';
+  document.getElementById('mass-clear').style.display = queue.length ? '' : 'none';
+  document.querySelector('#mass-actions').style.display = queue.length ? 'flex' : 'none';
+
+  queue.forEach((item, idx) => {
+    const row = el('div',{class:'queue-item'});
+    const head = el('div',{class:'qi-head'},[
+      el('span',{class:'qi-name',text:item.file.name}),
+      el('span',{class:'qi-size',text:fmtBytes(item.file.size)}),
+      el('span',{class:`qi-status ${item.status}`,text:item.status}),
+    ]);
+    row.appendChild(head);
+    const barWrap = el('div',{class:'qi-bar-wrap'},[el('div',{class:'qi-bar',id:`qi-bar-${idx}`})]);
+    row.appendChild(barWrap);
+    const titleInput = el('input',{class:'qi-title-input',value:item.title,placeholder:'Title'});
+    titleInput.addEventListener('input', e => item.title = e.target.value);
+    row.appendChild(titleInput);
+    if(item.error){
+      row.appendChild(el('div',{style:'color:var(--danger);font-size:11px;margin-top:6px;font-family:var(--font-mono);',text:item.error}));
+    }
+    list.appendChild(row);
+    item.barEl = document.getElementById(`qi-bar-${idx}`);
+    item.rowEl = row;
+  });
+  updateSummary();
+}
+
+function updateSummary(){
+  const done = queue.filter(q=>q.status==='done').length;
+  const errors = queue.filter(q=>q.status==='error').length;
+  document.getElementById('qs-count').textContent = `${queue.length} file${queue.length===1?'':'s'}`;
+  document.getElementById('qs-done').textContent = `${done} uploaded`;
+  document.getElementById('qs-errors').textContent = `${errors} failed`;
+}
+
+function uploadOne(item, idx){
+  return new Promise(resolve => {
+    item.status='uploading'; renderQueueStatusOnly();
+    const fd=new FormData();
+    fd.append('title', item.title || titleFromFilename(item.file.name));
+    fd.append('description','');
+    fd.append('icon','');
+    fd.append('gamefile', item.file);
+    const xhr=new XMLHttpRequest();
+    xhr.open('POST','/api/games'); xhr.withCredentials=true;
+    xhr.upload.addEventListener('progress', ev=>{
+      if(ev.lengthComputable && item.barEl){
+        item.barEl.style.width = Math.round(ev.loaded/ev.total*100)+'%';
+      }
+    });
+    xhr.addEventListener('load', ()=>{
+      try{
+        const data=JSON.parse(xhr.responseText);
+        if(xhr.status>=400) throw new Error(data.error||'Upload failed');
+        item.status='done';
+      }catch(err){ item.status='error'; item.error=err.message; }
+      renderQueueStatusOnly();
+      resolve();
+    });
+    xhr.addEventListener('error', ()=>{ item.status='error'; item.error='Network error'; renderQueueStatusOnly(); resolve(); });
+    xhr.send(fd);
+  });
+}
+
+function renderQueueStatusOnly(){
+  // Lightweight update: just refresh status badges without rebuilding title inputs
+  queue.forEach((item, idx) => {
+    if(!item.rowEl) return;
+    const statusEl = item.rowEl.querySelector('.qi-status');
+    if(statusEl){ statusEl.className = `qi-status ${item.status}`; statusEl.textContent = item.status; }
+    if(item.status==='done' && item.barEl) item.barEl.style.width='100%';
+    if(item.error){
+      let errEl = item.rowEl.querySelector('.qi-error-msg');
+      if(!errEl){
+        errEl = el('div',{class:'qi-error-msg',style:'color:var(--danger);font-size:11px;margin-top:6px;font-family:var(--font-mono);'});
+        item.rowEl.appendChild(errEl);
+      }
+      errEl.textContent = item.error;
+    }
+  });
+  updateSummary();
+}
+
+async function startMassUpload(){
+  const startBtn = document.getElementById('mass-start');
+  startBtn.disabled = true;
+  startBtn.textContent = 'Uploading…';
+  // Sequential uploads to avoid overwhelming a 5GB-capable endpoint
+  for(let i=0;i<queue.length;i++){
+    if(queue[i].status==='done') continue;
+    await uploadOne(queue[i], i);
+  }
+  startBtn.disabled = false;
+  startBtn.textContent = '▶ Start Upload';
+}
+
+document.getElementById('mass-start').addEventListener('click', startMassUpload);
+document.getElementById('mass-clear').addEventListener('click', ()=>{ queue=[]; renderQueue(); });
+
+const dropzone = document.getElementById('dropzone');
+const massInput = document.getElementById('mass-file-input');
+dropzone.addEventListener('click', ()=> massInput.click());
+massInput.addEventListener('change', e => { addFilesToQueue(e.target.files); massInput.value=''; });
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag'); });
+dropzone.addEventListener('dragleave', ()=> dropzone.classList.remove('drag'));
+dropzone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropzone.classList.remove('drag');
+  addFilesToQueue(e.dataTransfer.files);
+});
+
+// ── Folder upload ─────────────────────────────────────────────────────────
+let folderFiles = [];
+const folderInput = document.getElementById('folder-input');
+const folderDropzone = document.getElementById('folder-dropzone');
+
+folderDropzone.addEventListener('click', ()=> folderInput.click());
+folderDropzone.addEventListener('dragover', e => { e.preventDefault(); folderDropzone.classList.add('drag'); });
+folderDropzone.addEventListener('dragleave', ()=> folderDropzone.classList.remove('drag'));
+folderDropzone.addEventListener('drop', e => {
+  e.preventDefault();
+  folderDropzone.classList.remove('drag');
+  handleFolderFiles(e.dataTransfer.files);
+});
+
+folderInput.addEventListener('change', e => handleFolderFiles(e.target.files));
+
+function handleFolderFiles(fileList) {
+  folderFiles = Array.from(fileList);
+  if (!folderFiles.length) return;
+  // Derive folder name from first file's relative path
+  const firstPath = (folderFiles[0].webkitRelativePath || folderFiles[0].name);
+  const folderName = firstPath.split('/')[0] || 'game';
+  const totalBytes = folderFiles.reduce((s, f) => s + f.size, 0);
+  const htmlFiles = folderFiles.filter(f => f.name.toLowerCase().endsWith('.html'));
+  const entry = htmlFiles.find(f => f.name.toLowerCase()==='index.html') || htmlFiles[0];
+
+  document.getElementById('folder-name').textContent = folderName;
+  document.getElementById('folder-stats').textContent =
+    `${folderFiles.length} files · ${fmtBytes(totalBytes)}`;
+  document.getElementById('folder-title').value = titleFromFilename(folderName);
+  document.getElementById('folder-info').style.display = '';
+  if (entry) {
+    const ep = entry.webkitRelativePath || entry.name;
+  } else {
+    document.getElementById('folder-msg').innerHTML =
+      '<div class="msg error">No .html file found. The folder needs an index.html to work as a game.</div>';
+  }
+}
+
+document.getElementById('folder-clear').addEventListener('click', ()=>{
+  folderFiles=[];
+  folderInput.value='';
+  document.getElementById('folder-info').style.display='none';
+  document.getElementById('folder-msg').innerHTML='';
+});
+
+document.getElementById('folder-btn').addEventListener('click', ()=>{
+  if (!folderFiles.length) return;
+  const msg = document.getElementById('folder-msg'); msg.innerHTML='';
+  const btn = document.getElementById('folder-btn');
+  btn.disabled=true; btn.textContent='Uploading…';
+  document.getElementById('folder-progress-wrap').style.display='';
+
+  const fd = new FormData();
+  fd.append('title', document.getElementById('folder-title').value || 'Untitled Game');
+  fd.append('description', document.getElementById('folder-desc').value);
+  fd.append('icon', document.getElementById('folder-icon').value);
+  for (const f of folderFiles) {
+    fd.append('files[]', f);
+    fd.append('paths[]', f.webkitRelativePath || f.name);
+  }
+
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', '/api/games/folder'); xhr.withCredentials=true;
+  xhr.upload.addEventListener('progress', ev => {
+    if (ev.lengthComputable) {
+      const pct = Math.round(ev.loaded/ev.total*100);
+      document.getElementById('folder-progress-bar').style.width = pct+'%';
+      document.getElementById('folder-progress-label').textContent =
+        `Uploading… ${fmtBytes(ev.loaded)} / ${fmtBytes(ev.total)} (${pct}%)`;
+    }
+  });
+  xhr.addEventListener('load', ()=>{
+    btn.disabled=false; btn.textContent='Upload Folder';
+    document.getElementById('folder-progress-wrap').style.display='none';
+    try {
+      const data = JSON.parse(xhr.responseText);
+      if (xhr.status>=400) throw new Error(data.error||'Upload failed');
+      msg.innerHTML = `<div class="msg ok">${data.approved?'✅ Published!':'✅ Uploaded — awaiting admin approval.'} <a href="/game.html?id=${data.id}" style="color:var(--accent)">View game →</a></div>`;
+      folderFiles=[]; folderInput.value='';
+      document.getElementById('folder-info').style.display='none';
+    } catch(err) { msg.innerHTML=`<div class="msg error">${err.message}</div>`; }
+  });
+  xhr.addEventListener('error', ()=>{
+    btn.disabled=false; btn.textContent='Upload Folder';
+    document.getElementById('folder-progress-wrap').style.display='none';
+    msg.innerHTML='<div class="msg error">Network error during upload.</div>';
+  });
+  xhr.send(fd);
+});
+</script>
+</body></html>

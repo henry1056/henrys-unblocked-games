@@ -1,0 +1,259 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Server — Henry's Unblocked Games</title>
+<link rel="stylesheet" href="/static/css/style.css">
+</head><body>
+<header class="site-header"><nav class="nav container">
+  <a href="/" class="logo-henry"><span class="cursor"></span><span class="h-name">HENRY'S</span>&nbsp;UNBLOCKED GAMES</a>
+  <div class="nav-links" id="nav-links"></div>
+</nav></header>
+
+<!-- Role modal -->
+<div id="role-modal" class="modal-backdrop" style="display:none;">
+  <div class="modal" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:28px;max-width:400px;width:100%;max-height:80vh;overflow-y:auto;">
+    <h3 style="font-family:var(--font-display);font-size:12px;margin-top:0;">Manage Roles</h3>
+    <div id="role-list"></div>
+    <hr style="border-color:var(--border);margin:14px 0;">
+    <h3 style="font-family:var(--font-display);font-size:11px;">Create New Role</h3>
+    <div class="field"><label>Name</label><input id="role-name" maxlength="30" placeholder="e.g. VIP"></div>
+    <div class="field"><label>Color</label><input id="role-color" type="color" value="#39ff88"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+      <label style="font-size:13px;display:flex;align-items:center;gap:6px;"><input type="checkbox" id="role-kick"> Can Kick</label>
+      <label style="font-size:13px;display:flex;align-items:center;gap:6px;"><input type="checkbox" id="role-manage"> Can Manage Roles</label>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn primary" id="role-create">Create Role</button>
+      <button class="btn" onclick="document.getElementById('role-modal').style.display='none'">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Member role modal -->
+<div id="member-role-modal" class="modal-backdrop" style="display:none;">
+  <div class="modal" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;max-width:360px;width:100%;">
+    <h3 style="font-family:var(--font-display);font-size:12px;margin-top:0;" id="member-role-title">Assign Roles</h3>
+    <div id="member-role-list" style="display:flex;flex-direction:column;gap:8px;max-height:280px;overflow-y:auto;"></div>
+    <button class="btn" style="margin-top:14px;width:100%;" onclick="document.getElementById('member-role-modal').style.display='none'">Close</button>
+  </div>
+</div>
+
+<div class="container" style="padding-bottom:0;">
+  <div class="server-layout" id="server-layout">
+    <!-- Members sidebar -->
+    <div class="sidebar">
+      <div class="sidebar-head">Members</div>
+      <div class="sidebar-list" id="members-list"></div>
+      <div style="padding:10px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:6px;" id="server-actions"></div>
+    </div>
+
+    <!-- Chat -->
+    <div class="chat-panel" style="height:auto;">
+      <div class="chat-head">
+        <span class="dot"></span>
+        <span id="server-name">Loading…</span>
+        <span id="invite-display" style="font-family:var(--font-mono);font-size:10px;color:var(--muted);margin-left:auto;"></span>
+      </div>
+      <div class="chat-log" id="chat-log" style="flex:1;min-height:0;"></div>
+      <div id="chat-status" class="hint" style="padding:0 12px;font-size:12px;"></div>
+      <form class="chat-input-row" id="chat-form">
+        <input id="chat-input" placeholder="Message…" maxlength="500" autocomplete="off">
+        <button class="btn primary" type="submit">Send</button>
+      </form>
+    </div>
+
+    <!-- Roles sidebar -->
+    <div class="sidebar">
+      <div class="sidebar-head">Roles</div>
+      <div class="sidebar-list" id="roles-list"></div>
+      <div style="padding:10px;border-top:1px solid var(--border);" id="role-actions"></div>
+    </div>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="/static/js/app.js"></script>
+<script>
+renderHeader('/servers.html');
+const params = new URLSearchParams(location.search);
+const serverId = parseInt(params.get('id'));
+const log = document.getElementById('chat-log');
+let me = null, serverData = null, canManage = false;
+
+function addLine(username, content, when, system) {
+  const line = el('div',{class:'chat-line'},[
+    el('span',{class:system?'who system':'who',text:system?'*':username}),
+    document.createTextNode(' '+content),
+    el('span',{class:'when',text:when?timeAgo(when):''}),
+  ]);
+  log.appendChild(line); log.scrollTop=log.scrollHeight;
+}
+
+async function loadServer() {
+  me = await getMe();
+  if(!me){ document.getElementById('server-layout').innerHTML='<p class="hint" style="padding:40px;text-align:center">You must be <a href="/login.html" style="color:var(--accent)">logged in</a> to view servers.</p>'; return; }
+  try {
+    const data = await api(`/api/servers/${serverId}`);
+    serverData = data;
+    document.title = `${data.server.name} — Henry's Unblocked Games`;
+    document.getElementById('server-name').textContent = `#general — ${data.server.name}`;
+    document.getElementById('invite-display').textContent = `Invite: ${data.server.invite_code}`;
+
+    // Check if user is a member
+    const isMember = data.members.some(m => m.username === me.username);
+    if(!isMember) { document.getElementById('chat-log').innerHTML='<div style="text-align:center;padding:40px;color:var(--muted)">You are not a member of this server.</div>'; return; }
+
+    canManage = data.server.owner === me.username || me.role === 'admin' ||
+      data.members.find(m=>m.username===me.username)?.roles?.split(',').some(r=>{
+        const role = data.roles.find(x=>x.name===r);
+        return role?.can_manage_roles;
+      });
+
+    renderMembers(data);
+    renderRoles(data);
+    renderActions(data);
+
+    // History
+    data.history.forEach(m => addLine(m.username, m.content, m.created_at));
+
+    // Join socket room
+    socket.emit('chat:join_server', serverId);
+  } catch(e) { document.getElementById('server-name').textContent='Error: '+e.message; }
+}
+
+function renderMembers(data) {
+  const list = document.getElementById('members-list');
+  list.innerHTML='';
+  for(const m of data.members) {
+    const roles = m.roles ? m.roles.split(',') : [];
+    const colors = m.role_colors ? m.role_colors.split(',') : [];
+    const topColor = colors[0] || '#8590a6';
+    const row = el('div',{class:'sidebar-item',style:'cursor:default;'});
+    const dot = el('span',{class:'member-dot',style:`background:${topColor}`});
+    const name = el('span',{text:m.username,style:`font-size:13px;`});
+    row.appendChild(dot); row.appendChild(name);
+    for(let i=0;i<roles.length;i++) {
+      if(roles[i]) row.appendChild(el('span',{class:'role-tag',text:roles[i],style:`background:${colors[i]||'#444'}22;color:${colors[i]||'#8590a6'};border:1px solid ${colors[i]||'#444'}44;`}));
+    }
+    if(canManage && m.username !== me.username) {
+      const manageBtn = el('button',{class:'btn small',text:'⚙',style:'float:right;padding:2px 6px;font-size:10px;',title:'Manage roles'});
+      manageBtn.addEventListener('click',()=>openMemberRoles(m, data));
+      row.appendChild(manageBtn);
+    }
+    list.appendChild(row);
+  }
+}
+
+function renderRoles(data) {
+  const list = document.getElementById('roles-list');
+  list.innerHTML='';
+  for(const r of data.roles) {
+    const row = el('div',{class:'sidebar-item',style:'display:flex;align-items:center;gap:8px;cursor:default;'});
+    row.appendChild(el('span',{style:`width:10px;height:10px;border-radius:50%;background:${r.color};display:inline-block;flex-shrink:0;`}));
+    row.appendChild(el('span',{text:r.name,style:'font-size:13px;flex:1;'}));
+    if(r.can_kick) row.appendChild(el('span',{class:'badge',text:'kick',style:'font-size:9px;'}));
+    if(r.can_manage_roles) row.appendChild(el('span',{class:'badge',text:'manage',style:'font-size:9px;color:var(--accent);border-color:var(--accent-dim);'}));
+    list.appendChild(row);
+  }
+}
+
+function renderActions(data) {
+  const acts = document.getElementById('server-actions');
+  acts.innerHTML='';
+  if(canManage) {
+    const rb = el('button',{class:'btn small',text:'⚙ Manage Roles',style:'width:100%;'});
+    rb.addEventListener('click',()=>openRoleManager(data));
+    acts.appendChild(rb);
+  }
+  if(data.server.owner === me.username || me.role==='admin') {
+    const db2 = el('button',{class:'btn danger small',text:'Delete Server',style:'width:100%;'});
+    db2.addEventListener('click',async()=>{
+      if(!confirm('Delete this server permanently?'))return;
+      await api(`/api/servers/${serverId}`,{method:'DELETE'});
+      window.location.href='/servers.html';
+    });
+    acts.appendChild(db2);
+  }
+  // Leave button (if not owner)
+  if(data.server.owner !== me.username) {
+    const roleActArea = document.getElementById('role-actions');
+    const kb = el('button',{class:'btn danger small',text:'Leave Server',style:'width:100%;'});
+    kb.addEventListener('click',async()=>{
+      await api(`/api/servers/${serverId}/kick/${me.id}`,{method:'POST'});
+      window.location.href='/servers.html';
+    });
+    roleActArea.appendChild(kb);
+  }
+}
+
+function openRoleManager(data) {
+  const modal = document.getElementById('role-modal');
+  const list = document.getElementById('role-list');
+  list.innerHTML='';
+  for(const r of data.roles) {
+    const row = el('div',{style:'display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);'});
+    row.appendChild(el('span',{style:`width:12px;height:12px;border-radius:50%;background:${r.color};display:inline-block;`}));
+    row.appendChild(el('span',{text:r.name,style:'flex:1;font-size:13px;'}));
+    if(!['Owner','Member','Mod'].includes(r.name)) {
+      const delB = el('button',{class:'btn danger small',text:'Delete'});
+      delB.addEventListener('click',async()=>{
+        await api(`/api/servers/${serverId}/roles/${r.id}`,{method:'DELETE'});
+        location.reload();
+      });
+      row.appendChild(delB);
+    }
+    list.appendChild(row);
+  }
+  modal.style.display='flex';
+}
+
+document.getElementById('role-create').addEventListener('click', async()=>{
+  const name=document.getElementById('role-name').value.trim();
+  const color=document.getElementById('role-color').value;
+  const can_kick=document.getElementById('role-kick').checked;
+  const can_manage_roles=document.getElementById('role-manage').checked;
+  if(!name)return;
+  try{
+    await api(`/api/servers/${serverId}/roles`,{method:'POST',body:JSON.stringify({name,color,can_kick,can_manage_roles})});
+    location.reload();
+  }catch(e){alert(e.message);}
+});
+
+function openMemberRoles(member, data) {
+  document.getElementById('member-role-title').textContent=`Roles for ${member.username}`;
+  const list = document.getElementById('member-role-list');
+  list.innerHTML='';
+  const memberRoles = member.roles ? member.roles.split(',') : [];
+  for(const r of data.roles) {
+    const hasRole = memberRoles.includes(r.name);
+    const row = el('div',{style:'display:flex;align-items:center;gap:10px;'});
+    row.appendChild(el('span',{style:`width:10px;height:10px;border-radius:50%;background:${r.color};display:inline-block;`}));
+    row.appendChild(el('span',{text:r.name,style:'flex:1;font-size:13px;'}));
+    const btn = el('button',{class:`btn small ${hasRole?'danger':''}`,text:hasRole?'Remove':'Assign'});
+    btn.addEventListener('click',async()=>{
+      const endpoint=`/api/servers/${serverId}/members/${member.id}/roles/${r.id}`;
+      await api(endpoint,{method:hasRole?'DELETE':'POST'});
+      location.reload();
+    });
+    row.appendChild(btn);
+    list.appendChild(row);
+  }
+  document.getElementById('member-role-modal').style.display='flex';
+}
+
+const socket = io();
+socket.on('connect_error',()=>document.getElementById('chat-status').textContent='Could not connect.');
+socket.on('chat:error',m=>addLine('',''+m,null,true));
+socket.on('chat:server_history',d=>{ log.innerHTML=''; d.history.forEach(m=>addLine(m.username,m.content,m.created_at)); });
+socket.on('chat:message',m=>addLine(m.username,m.content,m.created_at));
+
+document.getElementById('chat-form').addEventListener('submit',e=>{
+  e.preventDefault();
+  const inp=document.getElementById('chat-input');
+  const t=inp.value.trim(); if(!t)return;
+  socket.emit('chat:message',{content:t,server_id:serverId});
+  inp.value='';
+});
+
+loadServer();
+</script>
+</body></html>

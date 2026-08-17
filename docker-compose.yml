@@ -1,0 +1,57 @@
+services:
+
+  # ── Backroom Arcade (Python Flask) ─────────────────────────────────────────
+  arcade:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "${WEBUI_PORT:-3000}:3000"
+    environment:
+      PORT: 3000
+      SESSION_SECRET: ${SESSION_SECRET:-change-me-to-a-long-random-string}
+      DEFAULT_ADMIN_PASSWORD: ${DEFAULT_ADMIN_PASSWORD:-ChangeMe123!}
+      DB_PATH: /data/db/data.sqlite
+      UPLOAD_DIR: /data/uploads/games
+    volumes:
+      - arcade-db:/data/db
+      - arcade-uploads:/data/uploads/games
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:3000/api/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # ── Eaglercraft Server (EaglercraftX Paper 1.12.2) ─────────────────────────
+  # Serves port 8081 → WebSocket gateway + browser client (HTTP)
+  #         port 25565 → Minecraft vanilla TCP (optional, for LAN Java clients)
+  # First boot downloads Paper and plugins — allow 5-10 minutes.
+  # By setting EULA=true you agree to the Minecraft EULA:
+  #   https://www.minecraft.net/en-us/eula
+  eaglercraft:
+    image: ghcr.io/eaglercraft-templates/eaglercraft-server-paper:latest
+    ports:
+      - "${EAGLER_WS_PORT:-8081}:8081"
+      - "${EAGLER_MC_PORT:-25565}:25565"
+    environment:
+      EULA: "true"
+      MINECRAFT_VERSION: "${MINECRAFT_VERSION:-1.12.2}"
+      MEMORY: "${EAGLER_MEMORY:-1G}"
+      MOTD: "Backroom Arcade Minecraft"
+      ONLINE_MODE: "false"
+    volumes:
+      - eagler-data:/eaglerX-1.8-server/server-data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "sh", "-c", "exit 0"]
+      interval: 60s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+volumes:
+  arcade-db:
+  arcade-uploads:
+  eagler-data:

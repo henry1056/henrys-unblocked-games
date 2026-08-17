@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sign up — Backroom Arcade</title>
+<link rel="stylesheet" href="/static/css/style.css"></head>
+<body>
+<header class="site-header"><nav class="nav container">
+  <a href="/" class="logo-henry"><span class="cursor"></span>HENRY'S UNBLOCKED GAMES</a>
+  <div class="nav-links" id="nav-links"></div>
+</nav></header>
+<div class="container">
+  <div class="card">
+    <h2>Create an account</h2>
+    <div id="msg"></div>
+    <form id="f">
+      <div class="field"><label>Username</label><input id="u" autocomplete="username" required minlength="3" maxlength="20"></div>
+      <div class="field"><label>Password</label><input id="p" type="password" autocomplete="new-password" required minlength="8"></div>
+      <button class="btn primary" style="width:100%" type="submit">Sign up</button>
+    </form>
+    <p class="hint">3–20 chars, letters/numbers/underscores. Already have an account? <a href="/login.html">Log in</a></p>
+  </div>
+</div>
+<script src="/static/js/app.js"></script>
+<script>
+renderHeader('/register.html');
+document.getElementById('f').addEventListener('submit', async e => {
+  e.preventDefault();
+  const msg = document.getElementById('msg'); msg.innerHTML='';
+  try {
+    await api('/api/auth/register',{method:'POST',body:JSON.stringify({username:document.getElementById('u').value.trim(),password:document.getElementById('p').value})});
+    window.location.href='/';
+  } catch(e) { msg.appendChild(el('div',{class:'msg error',text:e.message})); }
+});
+</script>
+</body></html>

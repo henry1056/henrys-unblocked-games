@@ -1,0 +1,64 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Account Settings — Henry's Unblocked Games</title>
+<link rel="stylesheet" href="/static/css/style.css">
+</head><body>
+<header class="site-header"><nav class="nav container">
+  <a href="/" class="logo-henry"><span class="cursor"></span><span class="h-name">HENRY'S</span>&nbsp;UNBLOCKED GAMES</a>
+  <div class="nav-links" id="nav-links"></div>
+</nav></header>
+<div class="container">
+  <div class="card">
+    <h2>Account Settings</h2>
+    <div id="acct-info" style="margin-bottom:20px;font-family:var(--font-mono);font-size:13px;color:var(--muted);"></div>
+
+    <h3 style="font-family:var(--font-display);font-size:13px;margin:0 0 16px;">Change Password</h3>
+    <div id="msg"></div>
+    <form id="pw-form">
+      <div class="field">
+        <label>Current password</label>
+        <input id="current-pw" type="password" autocomplete="current-password" required>
+      </div>
+      <div class="field">
+        <label>New password</label>
+        <input id="new-pw" type="password" autocomplete="new-password" required minlength="8">
+      </div>
+      <div class="field">
+        <label>Confirm new password</label>
+        <input id="confirm-pw" type="password" autocomplete="new-password" required minlength="8">
+      </div>
+      <button class="btn primary" type="submit" style="width:100%">Update Password</button>
+    </form>
+  </div>
+</div>
+<script src="/static/js/app.js"></script>
+<script>
+(async () => {
+  const me = await getMe();
+  if (!me) { window.location.href = '/login.html'; return; }
+  renderHeader(null);
+  document.getElementById('acct-info').textContent = `Logged in as ${me.username} · ${me.role}`;
+})();
+
+document.getElementById('pw-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const msg = document.getElementById('msg');
+  msg.innerHTML = '';
+  const current = document.getElementById('current-pw').value;
+  const next = document.getElementById('new-pw').value;
+  const confirm = document.getElementById('confirm-pw').value;
+
+  if (next !== confirm) {
+    msg.appendChild(el('div', { class: 'msg error', text: "New passwords don't match." }));
+    return;
+  }
+  try {
+    await api('/api/auth/change-password', { method: 'POST', body: JSON.stringify({ current_password: current, new_password: next }) });
+    msg.appendChild(el('div', { class: 'msg ok', text: '✅ Password updated.' }));
+    document.getElementById('pw-form').reset();
+  } catch (err) {
+    msg.appendChild(el('div', { class: 'msg error', text: err.message }));
+  }
+});
+</script>
+</body></html>

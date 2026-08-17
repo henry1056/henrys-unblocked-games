@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin — Backroom Arcade</title>
+<link rel="stylesheet" href="/static/css/style.css">
+<style>
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:200}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:28px;width:100%;max-width:380px}
+.modal h3{font-family:var(--font-display);font-size:13px;margin-top:0}
+.search-bar{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;font-family:var(--font-body);font-size:14px;margin-bottom:16px}
+.search-bar:focus{outline:2px solid var(--accent);border-color:var(--accent)}
+</style>
+</head>
+<body>
+<header class="site-header"><nav class="nav container">
+  <a href="/" class="logo-henry"><span class="cursor"></span>HENRY'S UNBLOCKED GAMES</a>
+  <div class="nav-links" id="nav-links"></div>
+</nav></header>
+
+<div id="modal" class="modal-backdrop" style="display:none">
+  <div class="modal">
+    <h3 id="modal-title">Action</h3>
+    <div id="modal-msg"></div>
+    <div id="modal-body"></div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn primary" id="modal-confirm">Confirm</button>
+      <button class="btn" id="modal-cancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="container" style="padding-top:32px;padding-bottom:60px">
+  <div class="section-title">Admin Panel</div>
+  <div class="tabs">
+    <button class="active" data-tab="users">Users</button>
+    <button data-tab="pending">Pending Games</button>
+    <button data-tab="log">Mod Log</button>
+  </div>
+
+  <div id="tab-users">
+    <input class="search-bar" id="user-search" placeholder="Search users…" type="search">
+    <div style="overflow-x:auto">
+      <table class="admin-table">
+        <thead><tr><th>Username</th><th>Role</th><th>Status</th><th>Joined</th><th>Actions</th></tr></thead>
+        <tbody id="users-body"><tr><td colspan="5" style="color:var(--muted)">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="tab-pending" style="display:none"><div id="pending-wrap"></div></div>
+
+  <div id="tab-log" style="display:none">
+    <div style="overflow-x:auto">
+      <table class="admin-table">
+        <thead><tr><th>Time</th><th>Admin</th><th>Target</th><th>Action</th><th>Reason</th></tr></thead>
+        <tbody id="log-body"><tr><td colspan="5" style="color:var(--muted)">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script src="/static/js/app.js"></script>
+<script>
+(async()=>{
+  const me=await getMe();
+  if(!me||me.role!=='admin'){document.querySelector('.container').innerHTML='<p class="hint" style="text-align:center;padding:60px 0">Admin access only.</p>';return;}
+  renderHeader('/admin.html');
+  init();
+})();
+
+document.querySelectorAll('.tabs button').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.tabs button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    ['users','pending','log'].forEach(t=>document.getElementById(`tab-${t}`).style.display=t===btn.dataset.tab?'':'none');
+    if(btn.dataset.tab==='pending')loadPending();
+    if(btn.dataset.tab==='log')loadLog();
+  });
+});
+
+function openModal(title,bodyHTML,onConfirm){
+  document.getElementById('modal-title').textContent=title;
+  document.getElementById('modal-body').innerHTML=bodyHTML;
+  document.getElementById('modal-msg').innerHTML='';
+  document.getElementById('modal').style.display='flex';
+  document.getElementById('modal-confirm').onclick=onConfirm;
+  document.getElementById('modal-cancel').onclick=closeModal;
+}
+function closeModal(){document.getElementById('modal').style.display='none';}
+document.getElementById('modal').addEventListener('click',e=>{if(e.target===document.getElementById('modal'))closeModal();});
+function modalMsg(t,err){const d=document.getElementById('modal-msg');d.innerHTML='';d.appendChild(el('div',{class:`msg ${err?'error':'ok'}`,text:t}));}
+
+const inp = s=>`<input id="${s}" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;font-size:14px;" placeholder="Reason…">`;
+const numInp = (id,val)=>`<input id="${id}" type="number" min="1" max="43200" value="${val}" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;font-size:14px;">`;
+
+let allUsers=[];
+async function loadUsers(){
+  const tbody=document.getElementById('users-body');
+  try{
+    allUsers=await api('/api/admin/users');
+    renderUsers(allUsers);
+  }catch(e){tbody.innerHTML=`<tr><td colspan="5" style="color:var(--danger)">${e.message}</td></tr>`;}
+}
+function renderUsers(users){
+  const tbody=document.getElementById('users-body');
+  tbody.innerHTML='';
+  if(!users.length){tbody.innerHTML='<tr><td colspan="5" style="color:var(--muted)">No users found.</td></tr>';return;}
+  const now=Date.now();
+  for(const u of users){
+    const isTimed=u.timeout_until&&u.timeout_until>now;
+    const statusBadge=u.banned
+      ?el('span',{class:'badge banned',text:'Banned'})
+      :isTimed
+        ?el('span',{class:'badge timeout',text:`Timeout ${Math.ceil((u.timeout_until-now)/60000)}m`})
+        :el('span',{class:'badge ok',text:'OK'});
+    const acts=el('div',{class:'row-actions'});
+
+    if(!u.banned){
+      const tb=el('button',{class:'btn warn small',text:isTimed?'Extend':'Timeout'});
+      tb.addEventListener('click',()=>{
+        openModal(`Timeout: ${u.username}`,
+          `<div class="field" style="margin-bottom:10px"><label style="font-family:var(--font-mono);font-size:12px;color:var(--muted);display:block;margin-bottom:6px">Minutes</label>${numInp('m-mins',60)}</div>
+           <div class="field"><label style="font-family:var(--font-mono);font-size:12px;color:var(--muted);display:block;margin-bottom:6px">Reason</label>${inp('m-reason')}</div>`,
+          async()=>{
+            const mins=parseInt(document.getElementById('m-mins').value,10);
+            const reason=document.getElementById('m-reason').value;
+            try{await api(`/api/admin/users/${u.id}/timeout`,{method:'POST',body:JSON.stringify({minutes:mins,reason})});modalMsg(`${u.username} timed out for ${mins}m.`,false);setTimeout(()=>{closeModal();loadUsers();},1200);}
+            catch(e){modalMsg(e.message,true);}
+          }
+        );
+      });
+      acts.appendChild(tb);
+    }
+    if(isTimed){
+      const cb=el('button',{class:'btn small',text:'Clear timeout'});
+      cb.addEventListener('click',async()=>{if(!confirm(`Clear timeout for ${u.username}?`))return;await api(`/api/admin/users/${u.id}/clear-timeout`,{method:'POST'});loadUsers();});
+      acts.appendChild(cb);
+    }
+    if(u.banned){
+      const ub=el('button',{class:'btn small',text:'Unban'});
+      ub.addEventListener('click',async()=>{if(!confirm(`Unban ${u.username}?`))return;await api(`/api/admin/users/${u.id}/unban`,{method:'POST'});loadUsers();});
+      acts.appendChild(ub);
+    } else if(u.role!=='admin'){
+      const bb=el('button',{class:'btn danger small',text:'Ban'});
+      bb.addEventListener('click',()=>{
+        openModal(`Ban: ${u.username}`,`<div class="field"><label style="font-family:var(--font-mono);font-size:12px;color:var(--muted);display:block;margin-bottom:6px">Reason</label>${inp('m-ban-reason')}</div>`,
+          async()=>{
+            const reason=document.getElementById('m-ban-reason').value;
+            try{await api(`/api/admin/users/${u.id}/ban`,{method:'POST',body:JSON.stringify({reason})});modalMsg(`${u.username} banned.`,false);setTimeout(()=>{closeModal();loadUsers();},1200);}
+            catch(e){modalMsg(e.message,true);}
+          }
+        );
+      });
+      acts.appendChild(bb);
+    }
+    if(u.role!=='admin'){
+      const sel=el('select',{style:'background:var(--bg);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:6px;font-size:12px;cursor:pointer'});
+      ['user','trusted','admin'].forEach(r=>{const o=el('option',{value:r,text:r});if(r===u.role)o.setAttribute('selected','');sel.appendChild(o);});
+      sel.addEventListener('change',async()=>{
+        const nr=sel.value;
+        if(!confirm(`Set ${u.username} to "${nr}"?`)){sel.value=u.role;return;}
+        try{await api(`/api/admin/users/${u.id}/role`,{method:'POST',body:JSON.stringify({role:nr})});loadUsers();}
+        catch(e){alert(e.message);sel.value=u.role;}
+      });
+      acts.appendChild(sel);
+    }
+    const pwBtn=el('button',{class:'btn small',text:'🔑 Reset PW'});
+    pwBtn.addEventListener('click',()=>{
+      openModal(`Reset password: ${u.username}`,
+        `<div class="field"><label style="font-family:var(--font-mono);font-size:12px;color:var(--muted);display:block;margin-bottom:6px">New password (min 8 chars)</label><input id="m-newpw" type="password" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;font-size:14px;"></div>`,
+        async()=>{
+          const pw=document.getElementById('m-newpw').value;
+          try{
+            await api(`/api/admin/users/${u.id}/set-password`,{method:'POST',body:JSON.stringify({new_password:pw})});
+            modalMsg(`Password reset for ${u.username}.`,false);
+            setTimeout(closeModal,1200);
+          }catch(e){modalMsg(e.message,true);}
+        }
+      );
+    });
+    acts.appendChild(pwBtn);
+    tbody.appendChild(el('tr',{},[
+      el('td',{},[el('strong',{text:u.username})]),
+      el('td',{},[el('span',{class:`pill role-${u.role}`,text:u.role})]),
+      el('td',{},[statusBadge,u.ban_reason?el('span',{style:'color:var(--muted);font-size:11px;margin-left:6px',text:`(${u.ban_reason})`}):el('span',{})]),
+      el('td',{style:'color:var(--muted);font-size:12px',text:new Date(u.created_at).toLocaleDateString()}),
+      el('td',{},[acts]),
+    ]));
+  }
+}
+document.getElementById('user-search').addEventListener('input',e=>{
+  const q=e.target.value.toLowerCase();
+  renderUsers(allUsers.filter(u=>u.username.toLowerCase().includes(q)));
+});
+
+async function loadPending(){
+  const wrap=document.getElementById('pending-wrap');
+  wrap.innerHTML='<p style="color:var(--muted)">Loading…</p>';
+  try{
+    const games=await api('/api/games/pending');
+    if(!games.length){wrap.innerHTML='<div class="empty-state">No pending games.</div>';return;}
+    wrap.innerHTML='';
+    const grid=el('div',{class:'game-grid'});
+    for(const g of games){
+      const row=el('div',{class:'row-actions',style:'margin-top:10px'});
+      const ab=el('button',{class:'btn primary small',text:'✓ Approve'});
+      ab.addEventListener('click',async()=>{await api(`/api/games/${g.id}/approve`,{method:'POST'});loadPending();});
+      const rb=el('button',{class:'btn danger small',text:'✕ Reject'});
+      rb.addEventListener('click',async()=>{if(!confirm('Delete this game?'))return;await api(`/api/games/${g.id}`,{method:'DELETE'});loadPending();});
+      row.append(ab,rb);
+      grid.appendChild(el('div',{class:'cabinet',style:'text-decoration:none'},[
+        el('div',{class:'screen',text:g.title.slice(0,1).toUpperCase()}),
+        el('div',{class:'info'},[el('h3',{text:g.title}),el('p',{text:g.description||'(no description)'}),el('div',{class:'meta',text:`by ${g.uploader} · ${timeAgo(g.created_at)}`}),row]),
+      ]));
+    }
+    wrap.appendChild(grid);
+  }catch(e){wrap.innerHTML=`<div class="empty-state" style="color:var(--danger)">${e.message}</div>`;}
+}
+
+async function loadLog(){
+  const tbody=document.getElementById('log-body');
+  try{
+    const log=await api('/api/admin/log');
+    tbody.innerHTML='';
+    if(!log.length){tbody.innerHTML='<tr><td colspan="5" style="color:var(--muted)">No actions yet.</td></tr>';return;}
+    for(const e of log){
+      tbody.appendChild(el('tr',{},[
+        el('td',{style:'color:var(--muted);font-size:12px',text:new Date(e.created_at).toLocaleString()}),
+        el('td',{},[el('span',{class:'pill role-admin',text:e.admin_username})]),
+        el('td',{text:e.target_username}),
+        el('td',{},[el('span',{class:'badge timeout',text:e.action})]),
+        el('td',{style:'color:var(--muted);font-size:13px',text:e.reason||'—'}),
+      ]));
+    }
+  }catch(e){tbody.innerHTML=`<tr><td colspan="5" style="color:var(--danger)">${e.message}</td></tr>`;}
+}
+
+function init(){loadUsers();}
+</script>
+</body></html>

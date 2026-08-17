@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Chat — Backroom Arcade</title>
+<link rel="stylesheet" href="/static/css/style.css">
+<style>.chat-page{max-width:720px;margin:40px auto;padding:0 24px}.chat-panel{height:580px}</style>
+</head>
+<body>
+<header class="site-header"><nav class="nav container">
+  <a href="/" class="logo-henry"><span class="cursor"></span>HENRY'S UNBLOCKED GAMES</a>
+  <div class="nav-links" id="nav-links"></div>
+</nav></header>
+<div class="chat-page">
+  <div class="section-title">General Chat</div>
+  <div class="chat-panel">
+    <div class="chat-head"><span class="dot"></span> #general</div>
+    <div class="chat-log" id="chat-log"></div>
+    <div id="chat-status" class="hint" style="padding:0 12px;font-size:12px;"></div>
+    <form class="chat-input-row" id="chat-form">
+      <input id="chat-input" placeholder="Say something…" maxlength="500" autocomplete="off">
+      <button class="btn primary" type="submit">Send</button>
+    </form>
+  </div>
+</div>
+<script src="/socket.io/socket.io.js"></script>
+<script src="/static/js/app.js"></script>
+<script>
+renderHeader('/chat.html');
+const log=document.getElementById('chat-log');
+function addLine(username,content,when,system){
+  const line=el('div',{class:'chat-line'},[
+    el('span',{class:system?'who system':'who',text:system?'*':username}),
+    document.createTextNode(' '+content),
+    el('span',{class:'when',text:when?timeAgo(when):''}),
+  ]);
+  log.appendChild(line);log.scrollTop=log.scrollHeight;
+}
+const socket=io();
+socket.on('connect_error',()=>document.getElementById('chat-status').textContent='Could not connect — make sure you are logged in.');
+socket.on('chat:error',m=>addLine('',''+m,null,true));
+socket.on('chat:history',h=>{log.innerHTML='';if(!h.length)addLine('','No messages yet. Say hi!',null,true);else h.forEach(m=>addLine(m.username,m.content,m.created_at));});
+socket.on('chat:message',m=>addLine(m.username,m.content,m.created_at));
+document.getElementById('chat-form').addEventListener('submit',e=>{
+  e.preventDefault();
+  const inp=document.getElementById('chat-input');
+  const t=inp.value.trim();if(!t)return;
+  socket.emit('chat:message',t);inp.value='';
+});
+</script>
+</body></html>

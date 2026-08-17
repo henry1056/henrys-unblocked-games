@@ -1,0 +1,347 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Casino — Henry's Unblocked Games</title>
+<link rel="stylesheet" href="/static/css/style.css">
+<style>
+.casino-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px;padding-bottom:40px;}
+.casino-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:22px;display:flex;flex-direction:column;gap:14px;}
+.casino-card h3{font-family:var(--font-display);font-size:14px;margin:0;display:flex;align-items:center;gap:8px;}
+.bet-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.bet-row input{flex:1;min-width:80px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;font-family:var(--font-mono);font-size:13px;}
+.bet-row input:focus{outline:2px solid var(--accent);border-color:var(--accent);}
+.result-box{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px 12px;font-family:var(--font-mono);font-size:12px;min-height:20px;text-align:center;}
+.result-box.win{border-color:var(--accent);color:var(--accent);}
+.result-box.lose{border-color:var(--danger);color:var(--danger);}
+.result-box.push{border-color:var(--warn);color:var(--warn);}
+.free-btn-wrap{text-align:center;margin-bottom:24px;}
+.free-btn{font-family:var(--font-display);font-size:12px;background:var(--warn);color:#201800;border:none;padding:14px 28px;border-radius:8px;cursor:pointer;animation:pulse 2s ease-in-out infinite;}
+.free-btn:disabled{opacity:.5;cursor:not-allowed;animation:none;}
+
+/* ── SLOTS ── */
+.slot-machine{background:var(--bg);border:2px solid var(--border);border-radius:10px;padding:16px;display:flex;justify-content:center;gap:10px;overflow:hidden;}
+.slot-reel{width:64px;height:64px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:34px;overflow:hidden;position:relative;}
+.slot-reel .reel-inner{display:flex;flex-direction:column;transition:transform .15s;}
+.slot-reel.spinning .reel-inner{animation:reel-spin .15s linear infinite;}
+@keyframes reel-spin{ from{transform:translateY(0);} to{transform:translateY(64px);} }
+
+/* ── COINFLIP ── */
+.coin-stage{display:flex;justify-content:center;padding:10px 0;perspective:600px;}
+.coin-3d{width:70px;height:70px;border-radius:50%;background:linear-gradient(135deg,#ffd700,#b8860b);display:flex;align-items:center;justify-content:center;font-size:28px;font-family:var(--font-display);color:#4a3800;box-shadow:0 4px 10px rgba(0,0,0,.4);transform-style:preserve-3d;transition:transform 1.2s cubic-bezier(.2,.8,.3,1);}
+.coin-3d.flipping{animation:coin-spin 1.2s cubic-bezier(.2,.8,.3,1);}
+@keyframes coin-spin{ 0%{transform:rotateY(0);} 100%{transform:rotateY(1800deg);} }
+
+/* ── ROULETTE ── */
+.roulette-stage{display:flex;flex-direction:column;align-items:center;gap:10px;}
+.wheel-wrap{position:relative;width:140px;height:140px;}
+.wheel{width:140px;height:140px;border-radius:50%;position:relative;transition:transform 3s cubic-bezier(.15,.85,.25,1);background:conic-gradient(from 0deg,#c0392b 0deg 9.7deg,#1a1a1a 9.7deg 19.4deg,#c0392b 19.4deg 29.1deg,#1a1a1a 29.1deg 38.8deg,#c0392b 38.8deg 48.5deg,#1a1a1a 48.5deg 58.2deg,#c0392b 58.2deg 67.9deg,#1a1a1a 67.9deg 77.6deg,#c0392b 77.6deg 87.3deg,#1a1a1a 87.3deg 97deg,#27ae60 97deg 106.7deg,#c0392b 106.7deg 116.4deg,#1a1a1a 116.4deg 126.1deg,#c0392b 126.1deg 135.8deg,#1a1a1a 135.8deg 145.5deg,#c0392b 145.5deg 155.2deg,#1a1a1a 155.2deg 164.9deg,#c0392b 164.9deg 174.6deg,#1a1a1a 174.6deg 184.3deg,#c0392b 184.3deg 194deg,#1a1a1a 194deg 203.7deg,#c0392b 203.7deg 213.4deg,#1a1a1a 213.4deg 223.1deg,#c0392b 223.1deg 232.8deg,#1a1a1a 232.8deg 242.5deg,#c0392b 242.5deg 252.2deg,#1a1a1a 252.2deg 261.9deg,#c0392b 261.9deg 271.6deg,#1a1a1a 271.6deg 281.3deg,#c0392b 281.3deg 291deg,#1a1a1a 291deg 300.7deg,#c0392b 300.7deg 310.4deg,#1a1a1a 310.4deg 320.1deg,#c0392b 320.1deg 329.8deg,#1a1a1a 329.8deg 339.5deg,#c0392b 339.5deg 349.2deg,#1a1a1a 349.2deg 360deg);border:4px solid var(--surface-2);box-shadow:0 4px 16px rgba(0,0,0,.5);}
+.wheel-pointer{position:absolute;top:-8px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:14px solid var(--accent);z-index:5;}
+.wheel-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:36px;height:36px;background:var(--surface);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:14px;font-weight:700;border:2px solid var(--border);}
+
+/* ── DICE ── */
+.dice-stage{display:flex;justify-content:center;gap:14px;padding:6px 0;}
+.die{width:56px;height:56px;background:#fff;border-radius:10px;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);padding:8px;box-shadow:0 4px 10px rgba(0,0,0,.4);transition:transform .5s;}
+.die.rolling{animation:die-roll .5s linear infinite;}
+@keyframes die-roll{ 0%{transform:rotate(0deg);} 100%{transform:rotate(360deg);} }
+.die .pip{width:8px;height:8px;border-radius:50%;background:#1a1a1a;align-self:center;justify-self:center;opacity:0;}
+.die .pip.on{opacity:1;}
+
+/* ── BLACKJACK CARDS ── */
+.card-row{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;min-height:70px;align-items:center;}
+.playing-card{width:44px;height:62px;background:#fff;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:var(--font-mono);font-weight:700;font-size:16px;box-shadow:0 2px 6px rgba(0,0,0,.4);color:#1a1a1a;}
+.playing-card.red{color:#c0392b;}
+.hand-label{font-family:var(--font-mono);font-size:11px;color:var(--muted);text-align:center;}
+</style>
+</head><body>
+<header class="site-header"><nav class="nav container">
+  <a href="/" class="logo-henry"><span class="cursor"></span><span class="h-name">HENRY'S</span>&nbsp;UNBLOCKED GAMES</a>
+  <div class="nav-links" id="nav-links"></div>
+</nav></header>
+<div class="container">
+  <div class="section-title">🎰 Casino</div>
+  <div id="auth-msg" style="display:none;" class="card" style="text-align:center">
+    <p>You must be <a href="/login.html" style="color:var(--accent)">logged in</a> to play.</p>
+  </div>
+  <div id="casino-wrap">
+    <div class="free-btn-wrap">
+      <div style="font-family:var(--font-display);font-size:22px;margin-bottom:12px;">🪙 <span id="balance-display">--</span></div>
+      <button class="free-btn" id="free-btn">🎁 Claim Free 100,000 Coins</button>
+      <div id="free-cd" style="font-family:var(--font-mono);font-size:12px;color:var(--muted);margin-top:8px;"></div>
+    </div>
+
+    <div class="casino-grid">
+
+      <!-- SLOTS -->
+      <div class="casino-card">
+        <h3>🎰 Slots</h3>
+        <div class="slot-machine" id="slot-machine">
+          <div class="slot-reel"><div class="reel-inner" id="reel-0"><span>❓</span></div></div>
+          <div class="slot-reel"><div class="reel-inner" id="reel-1"><span>❓</span></div></div>
+          <div class="slot-reel"><div class="reel-inner" id="reel-2"><span>❓</span></div></div>
+        </div>
+        <div class="bet-row">
+          <input type="number" id="slots-bet" placeholder="Bet" min="1" value="100">
+          <button class="btn primary" id="slots-btn" onclick="playSlots()">Spin</button>
+        </div>
+        <div class="result-box" id="slots-result">Spin to play!</div>
+      </div>
+
+      <!-- COINFLIP -->
+      <div class="casino-card">
+        <h3>🪙 Coinflip</h3>
+        <div class="coin-stage"><div class="coin-3d" id="cf-coin">?</div></div>
+        <div style="display:flex;gap:8px;margin-bottom:4px;">
+          <button class="btn" id="cf-heads" onclick="setCFChoice('heads')" style="flex:1">Heads</button>
+          <button class="btn" id="cf-tails" onclick="setCFChoice('tails')" style="flex:1">Tails</button>
+        </div>
+        <div class="bet-row">
+          <input type="number" id="cf-bet" placeholder="Bet" min="1" value="100">
+          <button class="btn primary" id="cf-btn" onclick="playCoinflip()">Flip</button>
+        </div>
+        <div class="result-box" id="cf-result">Pick a side!</div>
+      </div>
+
+      <!-- BLACKJACK -->
+      <div class="casino-card">
+        <h3>🃏 Blackjack</h3>
+        <div class="hand-label">Dealer</div>
+        <div class="card-row" id="bj-dealer"></div>
+        <div class="hand-label">You</div>
+        <div class="card-row" id="bj-player"></div>
+        <div class="bet-row">
+          <input type="number" id="bj-bet" placeholder="Bet" min="1" value="100">
+          <button class="btn primary" id="bj-btn" onclick="playBJ()">Deal</button>
+        </div>
+        <div class="result-box" id="bj-result">Place a bet!</div>
+      </div>
+
+      <!-- ROULETTE -->
+      <div class="casino-card">
+        <h3>🎡 Roulette</h3>
+        <div class="roulette-stage">
+          <div class="wheel-wrap">
+            <div class="wheel-pointer"></div>
+            <div class="wheel" id="roulette-wheel"></div>
+            <div class="wheel-center" id="wheel-number">–</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button class="btn small" style="background:#c0392b;border-color:#c0392b;color:#fff;" onclick="setRPick('red')">Red ×2</button>
+          <button class="btn small" style="background:#2c3e50;border-color:#555;color:#fff;" onclick="setRPick('black')">Black ×2</button>
+          <button class="btn small" style="background:#27ae60;border-color:#27ae60;color:#fff;" onclick="setRPick('green')">Green ×35</button>
+        </div>
+        <input type="number" id="r-num" min="0" max="36" placeholder="Or exact number (0-36, ×35)" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:6px;font-size:13px;">
+        <div class="bet-row">
+          <input type="number" id="r-bet" placeholder="Bet" min="1" value="100">
+          <button class="btn primary" id="r-btn" onclick="playRoulette()">Spin</button>
+        </div>
+        <div class="result-box" id="r-result">Pick a bet!</div>
+      </div>
+
+      <!-- DICE -->
+      <div class="casino-card">
+        <h3>🎲 Dice (2d6)</h3>
+        <div class="dice-stage">
+          <div class="die" id="die-0"></div>
+          <div class="die" id="die-1"></div>
+        </div>
+        <div style="font-family:var(--font-mono);font-size:11px;color:var(--muted);">Guess the sum (2-12):</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;" id="dice-targets"></div>
+        <div class="bet-row">
+          <input type="number" id="dice-bet" placeholder="Bet" min="1" value="100">
+          <button class="btn primary" id="dice-btn" onclick="playDice()">Roll</button>
+        </div>
+        <div class="result-box" id="dice-result">Pick a target!</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="/static/js/app.js"></script>
+<script>
+let balance=0, cfChoice='heads', rPick='red', diceTarget=7;
+const COOLDOWN=30*60*1000;
+const SLOT_SYMBOLS=['🍒','🍋','🍊','🍇','⭐','💎'];
+const PIP_LAYOUTS={
+  1:[4], 2:[0,8], 3:[0,4,8], 4:[0,2,6,8], 5:[0,2,4,6,8], 6:[0,2,3,5,6,8]
+};
+
+async function init(){
+  const me=await getMe();
+  if(!me){document.getElementById('auth-msg').style.display='';document.getElementById('casino-wrap').style.display='none';return;}
+  renderHeader('/casino.html');
+  await refreshBalance();
+  startFreeTimer();
+  buildDiceTargets();
+  setCFChoice('heads');
+  setRPick('red');
+  renderDie('die-0',1); renderDie('die-1',1);
+}
+async function refreshBalance(){ const d=await api('/api/economy/balance'); balance=d.coins; document.getElementById('balance-display').textContent=balance.toLocaleString()+' coins'; }
+
+function buildDiceTargets(){
+  const pays={2:35,3:17,4:11,5:8,6:6,7:5,8:6,9:8,10:11,11:17,12:35};
+  const wrap=document.getElementById('dice-targets');
+  for(const [n,p] of Object.entries(pays)){
+    const b=el('button',{class:'btn small',text:`${n}(×${p})`});
+    b.addEventListener('click',()=>{diceTarget=parseInt(n);document.querySelectorAll('#dice-targets .btn').forEach(x=>x.classList.remove('primary'));b.classList.add('primary');});
+    if(parseInt(n)===7)b.classList.add('primary');
+    wrap.appendChild(b);
+  }
+}
+function setCFChoice(c){cfChoice=c;document.getElementById('cf-heads').classList.toggle('primary',c==='heads');document.getElementById('cf-tails').classList.toggle('primary',c==='tails');}
+function setRPick(p){rPick=p;document.getElementById('r-num').value='';}
+
+let freeInterval;
+function startFreeTimer(){
+  const btn=document.getElementById('free-btn'), cd=document.getElementById('free-cd');
+  function startCountdown(rem){
+    btn.disabled=true;
+    freeInterval=setInterval(()=>{
+      rem-=1000;
+      if(rem<=0){clearInterval(freeInterval);btn.disabled=false;cd.textContent='';return;}
+      const m=Math.floor(rem/60000).toString().padStart(2,'0'), s=Math.floor((rem%60000)/1000).toString().padStart(2,'0');
+      cd.textContent=`Next free coins in ${m}:${s}`;
+    },1000);
+  }
+  async function tick(){
+    try{
+      await api('/api/economy/free',{method:'POST'});
+      await refreshBalance();
+      startCountdown(COOLDOWN);
+    }catch(e){
+      const match=e.message.match(/(\d+)m (\d+)s/);
+      if(match)startCountdown((parseInt(match[1])*60+parseInt(match[2]))*1000);
+    }
+  }
+  btn.addEventListener('click',tick);
+  tick();
+}
+
+function renderDie(id,val){
+  const die=document.getElementById(id);
+  die.innerHTML='';
+  for(let i=0;i<9;i++){
+    const pip=el('span',{class:'pip'+((PIP_LAYOUTS[val]||[]).includes(i)?' on':'')});
+    die.appendChild(pip);
+  }
+}
+
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+
+async function playSlots(){
+  const bet=parseInt(document.getElementById('slots-bet').value)||0;
+  const btn=document.getElementById('slots-btn'); btn.disabled=true;
+  document.querySelectorAll('.slot-reel').forEach(r=>r.classList.add('spinning'));
+  try{
+    const d=await api('/api/economy/gamble',{method:'POST',body:JSON.stringify({game:'slots',bet})});
+    await sleep(700);
+    document.querySelectorAll('.slot-reel').forEach(r=>r.classList.remove('spinning'));
+    d.detail.reels.forEach((sym,i)=>{ document.getElementById(`reel-${i}`).innerHTML=`<span>${sym}</span>`; });
+    const win=d.detail.win;
+    const box=document.getElementById('slots-result');
+    box.className='result-box '+(win?'win':'lose');
+    box.textContent = win ? `🎉 3-of-a-kind! ×${d.detail.multiplier} → +${d.result.toLocaleString()}` : (d.detail.partial ? `Pair! Small refund. ${d.result>=0?'+':''}${d.result.toLocaleString()}` : `No match. ${d.result.toLocaleString()}`);
+    refreshBalance();
+  }catch(e){
+    document.querySelectorAll('.slot-reel').forEach(r=>r.classList.remove('spinning'));
+    document.getElementById('slots-result').textContent=e.message;
+  }
+  btn.disabled=false;
+}
+
+async function playCoinflip(){
+  const bet=parseInt(document.getElementById('cf-bet').value)||0;
+  const btn=document.getElementById('cf-btn'); btn.disabled=true;
+  const coin=document.getElementById('cf-coin');
+  coin.classList.remove('flipping'); void coin.offsetWidth; coin.classList.add('flipping');
+  try{
+    const d=await api('/api/economy/gamble',{method:'POST',body:JSON.stringify({game:'coinflip',bet,choice:cfChoice})});
+    await sleep(1200);
+    coin.textContent = d.detail.flip==='heads'?'H':'T';
+    const box=document.getElementById('cf-result');
+    box.className='result-box '+(d.detail.win?'win':'lose');
+    box.textContent = d.detail.win?`✅ ${d.detail.flip.toUpperCase()}! You win +${d.result.toLocaleString()}`:`❌ ${d.detail.flip.toUpperCase()}. You lose ${d.result.toLocaleString()}`;
+    refreshBalance();
+  }catch(e){ document.getElementById('cf-result').textContent=e.message; }
+  btn.disabled=false;
+}
+
+function cardHTML(n){
+  const val = n===1?'A':n>=10?['10','J','Q','K'][Math.min(n-10,3)]:String(n);
+  const suits=['♠','♥','♦','♣'];
+  const suit = suits[Math.floor(Math.random()*suits.length)];
+  const red = suit==='♥'||suit==='♦';
+  return el('div',{class:'playing-card'+(red?' red':'')},[document.createTextNode(val),document.createTextNode(suit)]);
+}
+
+async function playBJ(){
+  const bet=parseInt(document.getElementById('bj-bet').value)||0;
+  const btn=document.getElementById('bj-btn'); btn.disabled=true;
+  document.getElementById('bj-dealer').innerHTML='';
+  document.getElementById('bj-player').innerHTML='';
+  try{
+    const d=await api('/api/economy/gamble',{method:'POST',body:JSON.stringify({game:'blackjack',bet})});
+    const pRow=document.getElementById('bj-player'), dRow=document.getElementById('bj-dealer');
+    for(const c of d.detail.player_hand){ pRow.appendChild(cardHTML(c)); await sleep(150); }
+    for(const c of d.detail.dealer_hand){ dRow.appendChild(cardHTML(c)); await sleep(150); }
+    const box=document.getElementById('bj-result');
+    const win=d.detail.win;
+    box.className='result-box '+(win===true?'win':win===false?'lose':'push');
+    if(win===true) box.textContent=`🎉 You win! (${d.detail.player_val} vs ${d.detail.dealer_val}) +${d.result.toLocaleString()}`;
+    else if(win===false) box.textContent=`❌ ${d.detail.reason==='bust'?'Bust!':'Dealer wins.'} (${d.detail.player_val} vs ${d.detail.dealer_val}) ${d.result.toLocaleString()}`;
+    else box.textContent=`🤝 Push (${d.detail.player_val} vs ${d.detail.dealer_val}) — bet returned.`;
+    refreshBalance();
+  }catch(e){ document.getElementById('bj-result').textContent=e.message; }
+  btn.disabled=false;
+}
+
+async function playRoulette(){
+  const bet=parseInt(document.getElementById('r-bet').value)||0;
+  const numVal=document.getElementById('r-num').value.trim();
+  const pick = numVal!=='' ? numVal : rPick;
+  const btn=document.getElementById('r-btn'); btn.disabled=true;
+  try{
+    const d=await api('/api/economy/gamble',{method:'POST',body:JSON.stringify({game:'roulette',bet,pick})});
+    const spin=d.detail.spin;
+    const wheel=document.getElementById('roulette-wheel');
+    const degPerPocket=360/37;
+    const targetDeg = 360*5 + (37-spin)*degPerPocket; // spin 5 full turns then land
+    wheel.style.transform=`rotate(${targetDeg}deg)`;
+    await sleep(3000);
+    document.getElementById('wheel-number').textContent=spin;
+    const box=document.getElementById('r-result');
+    box.className='result-box '+(d.detail.win?'win':'lose');
+    box.textContent = d.detail.win?`✅ Landed on ${spin}! +${d.result.toLocaleString()}`:`❌ Landed on ${spin}. ${d.result.toLocaleString()}`;
+    refreshBalance();
+  }catch(e){ document.getElementById('r-result').textContent=e.message; }
+  btn.disabled=false;
+}
+
+async function playDice(){
+  const bet=parseInt(document.getElementById('dice-bet').value)||0;
+  const btn=document.getElementById('dice-btn'); btn.disabled=true;
+  document.getElementById('die-0').classList.add('rolling');
+  document.getElementById('die-1').classList.add('rolling');
+  try{
+    const d=await api('/api/economy/gamble',{method:'POST',body:JSON.stringify({game:'dice',bet,target:diceTarget})});
+    await sleep(500);
+    document.getElementById('die-0').classList.remove('rolling');
+    document.getElementById('die-1').classList.remove('rolling');
+    renderDie('die-0',d.detail.dice[0]);
+    renderDie('die-1',d.detail.dice[1]);
+    const box=document.getElementById('dice-result');
+    box.className='result-box '+(d.detail.win?'win':'lose');
+    box.textContent = d.detail.win?`🎉 ${d.detail.roll}! ×${d.detail.multiplier} → +${d.result.toLocaleString()}`:`❌ Rolled ${d.detail.roll}, needed ${d.detail.target}. ${d.result.toLocaleString()}`;
+    refreshBalance();
+  }catch(e){
+    document.getElementById('die-0').classList.remove('rolling');
+    document.getElementById('die-1').classList.remove('rolling');
+    document.getElementById('dice-result').textContent=e.message;
+  }
+  btn.disabled=false;
+}
+
+init();
+</script>
+</body></html>

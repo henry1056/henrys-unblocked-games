@@ -1,0 +1,90 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Servers — Henry's Unblocked Games</title>
+<link rel="stylesheet" href="/static/css/style.css">
+</head><body>
+<header class="site-header"><nav class="nav container">
+  <a href="/" class="logo-henry"><span class="cursor"></span><span class="h-name">HENRY'S</span>&nbsp;UNBLOCKED GAMES</a>
+  <div class="nav-links" id="nav-links"></div>
+</nav></header>
+<div class="container">
+  <div class="section-title">Servers</div>
+  <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
+    <button class="btn primary" id="create-btn">+ Create Server</button>
+    <button class="btn" id="join-btn">🔗 Join via Invite</button>
+  </div>
+
+  <!-- Create modal -->
+  <div id="create-modal" class="modal-backdrop" style="display:none;">
+    <div class="modal" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:28px;max-width:380px;width:100%;">
+      <h3 style="font-family:var(--font-display);font-size:13px;margin-top:0;">Create a Server</h3>
+      <div id="create-msg"></div>
+      <div class="field"><label>Server Name</label><input id="s-name" maxlength="50" required placeholder="My Server"></div>
+      <div class="field"><label>Description (optional)</label><textarea id="s-desc" maxlength="200" placeholder="What's this server about?"></textarea></div>
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <button class="btn primary" id="create-confirm">Create</button>
+        <button class="btn" onclick="document.getElementById('create-modal').style.display='none'">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Join modal -->
+  <div id="join-modal" class="modal-backdrop" style="display:none;">
+    <div class="modal" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:28px;max-width:380px;width:100%;">
+      <h3 style="font-family:var(--font-display);font-size:13px;margin-top:0;">Join a Server</h3>
+      <div id="join-msg"></div>
+      <div class="field"><label>Invite Code</label><input id="invite-code" placeholder="Paste invite code…"></div>
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <button class="btn primary" id="join-confirm">Join</button>
+        <button class="btn" onclick="document.getElementById('join-modal').style.display='none'">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="server-grid" class="server-grid"><div class="empty-state">Loading…</div></div>
+</div>
+<script src="/static/js/app.js"></script>
+<script>
+renderHeader('/servers.html');
+
+async function loadServers() {
+  const grid = document.getElementById('server-grid');
+  try {
+    const servers = await api('/api/servers/');
+    if(!servers.length){ grid.innerHTML='<div class="empty-state">No servers yet. Create one!</div>'; return; }
+    grid.innerHTML='';
+    for(const s of servers){
+      const card = el('a',{href:`/server.html?id=${s.id}`,class:'server-card'},[
+        el('div',{class:'s-banner',text:s.icon||s.name.slice(0,2).toUpperCase()}),
+        el('div',{class:'s-info'},[
+          el('h3',{text:s.name}),
+          el('p',{text:s.description||'No description.'}),
+          el('div',{class:'s-meta',text:`${s.member_count} members · by ${s.owner}`}),
+        ]),
+      ]);
+      grid.appendChild(card);
+    }
+  } catch(e){ grid.innerHTML=`<div class="empty-state" style="color:var(--danger)">${e.message}</div>`; }
+}
+
+document.getElementById('create-btn').addEventListener('click',()=>document.getElementById('create-modal').style.display='flex');
+document.getElementById('join-btn').addEventListener('click',()=>document.getElementById('join-modal').style.display='flex');
+
+document.getElementById('create-confirm').addEventListener('click', async()=>{
+  const msg=document.getElementById('create-msg'); msg.innerHTML='';
+  try{
+    const r=await api('/api/servers/',{method:'POST',body:JSON.stringify({name:document.getElementById('s-name').value,description:document.getElementById('s-desc').value})});
+    window.location.href=`/server.html?id=${r.id}`;
+  }catch(e){msg.innerHTML=`<div class="msg error">${e.message}</div>`;}
+});
+document.getElementById('join-confirm').addEventListener('click',async()=>{
+  const msg=document.getElementById('join-msg'); msg.innerHTML='';
+  try{
+    const r=await api('/api/servers/join',{method:'POST',body:JSON.stringify({invite_code:document.getElementById('invite-code').value.trim()})});
+    window.location.href=`/server.html?id=${r.server_id}`;
+  }catch(e){msg.innerHTML=`<div class="msg error">${e.message}</div>`;}
+});
+
+loadServers();
+</script>
+</body></html>

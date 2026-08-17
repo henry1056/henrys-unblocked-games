@@ -1,0 +1,62 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Henry's Unblocked Games</title>
+<link rel="stylesheet" href="/static/css/style.css">
+</head><body>
+<header class="site-header"><nav class="nav container">
+  <a href="/" class="logo-henry"><span class="cursor"></span><span class="h-name">HENRY'S</span>&nbsp;UNBLOCKED GAMES</a>
+  <div class="nav-links" id="nav-links"></div>
+</nav></header>
+<section class="hero container">
+  <div class="eyebrow"><span id="game-count">--</span> games &amp; counting</div>
+  <h1>Henry's Unblocked Games</h1>
+  <p class="sub">Play free browser games, chat live, earn coins, gamble, and hang out in your own custom servers.</p>
+  <a href="#games" class="insert-coin">▶ Play Now</a>
+</section>
+<div class="container">
+  <div id="games" class="section-title">All Games</div>
+  <div id="search-wrap" style="margin-bottom:16px;">
+    <input id="game-search" type="search" placeholder="Search games…" style="width:100%;max-width:360px;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:var(--font-body);font-size:14px;">
+  </div>
+  <div id="game-grid" class="game-grid"><div class="empty-state">Loading games…</div></div>
+</div>
+<footer class="site-footer">Henry's Unblocked Games — play free, no BS.</footer>
+<script src="/static/js/app.js"></script>
+<script>
+renderHeader('/');
+let allGames = [];
+async function loadGames() {
+  const grid = document.getElementById('game-grid');
+  try {
+    allGames = await api('/api/games');
+    document.getElementById('game-count').textContent = allGames.length;
+    renderGrid(allGames);
+  } catch(e) { grid.innerHTML=''; grid.appendChild(el('div',{class:'empty-state',text:'Error: '+e.message})); }
+}
+function renderGrid(games) {
+  const grid = document.getElementById('game-grid');
+  grid.innerHTML='';
+  if(!games.length){ grid.appendChild(el('div',{class:'empty-state',text:'No games found.'})); return; }
+  for(const g of games){
+    const screenDiv = document.createElement('div');
+    screenDiv.className = g.icon ? 'screen has-icon' : 'screen';
+    if(g.icon){ const img=document.createElement('img'); img.src=g.icon; img.alt=g.title; screenDiv.appendChild(img); }
+    else screenDiv.textContent = g.title.slice(0,1).toUpperCase();
+    const ftBadge = el('span',{class:`type-badge ${g.file_type||'html'}`,text:(g.file_type||'HTML').toUpperCase()});
+    grid.appendChild(el('a',{href:`/game.html?id=${g.id}`,class:'cabinet'},[
+      screenDiv,
+      el('div',{class:'info'},[
+        el('h3',{},[document.createTextNode(g.title), ftBadge]),
+        el('p',{text:g.description||'No description.'}),
+        el('div',{class:'meta',text:`by ${g.uploader} · ${timeAgo(g.created_at)}`}),
+      ]),
+    ]));
+  }
+}
+document.getElementById('game-search').addEventListener('input', e => {
+  const q = e.target.value.toLowerCase();
+  renderGrid(allGames.filter(g => g.title.toLowerCase().includes(q) || (g.description||'').toLowerCase().includes(q)));
+});
+loadGames();
+</script>
+</body></html>

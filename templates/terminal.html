@@ -1,0 +1,150 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Terminal — Henry's Unblocked Games</title>
+<link rel="stylesheet" href="/static/css/style.css">
+<!-- xterm.js from CDN -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css">
+<style>
+.term-wrap{max-width:1000px;margin:24px auto;padding:0 16px 40px;}
+.term-box{background:#0a0a0a;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+.term-bar{padding:10px 16px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;font-family:var(--font-mono);font-size:12px;}
+.term-bar .dot-row{display:flex;gap:6px;}
+.term-dot{width:12px;height:12px;border-radius:50%;}
+#terminal-container{padding:4px;}
+.auth-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;z-index:100;}
+.auth-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:32px;max-width:380px;width:100%;text-align:center;}
+.auth-box h2{font-family:var(--font-display);font-size:14px;margin:0 0 6px;}
+.auth-box p{color:var(--muted);font-size:13px;margin:0 0 20px;}
+</style>
+</head><body>
+<header class="site-header"><nav class="nav container">
+  <a href="/" class="logo-henry"><span class="cursor"></span><span class="h-name">HENRY'S</span>&nbsp;UNBLOCKED GAMES</a>
+  <div class="nav-links" id="nav-links"></div>
+</nav></header>
+
+<!-- Auth overlay -->
+<div class="auth-overlay" id="auth-overlay">
+  <div class="auth-box">
+    <h2>🔐 Admin Terminal</h2>
+    <p>Enter the admin password to open a shell.</p>
+    <div id="auth-msg"></div>
+    <div class="field" style="text-align:left;">
+      <label>Admin password</label>
+      <input id="term-pw" type="password" autocomplete="current-password" style="width:100%;" placeholder="Password">
+    </div>
+    <button class="btn primary" id="auth-btn" style="width:100%;margin-top:4px;">Unlock Terminal</button>
+    <p style="margin-top:12px;font-size:12px;color:var(--muted);">This gives full shell access to the server. Use carefully.</p>
+  </div>
+</div>
+
+<div class="term-wrap">
+  <div class="section-title">Web Terminal</div>
+  <div class="term-box">
+    <div class="term-bar">
+      <div class="dot-row">
+        <div class="term-dot" style="background:#ff5f57;"></div>
+        <div class="term-dot" style="background:#febc2e;"></div>
+        <div class="term-dot" style="background:#28c840;"></div>
+      </div>
+      <span id="term-status" style="color:var(--muted);">Waiting for authentication…</span>
+      <button class="btn small" id="reconnect-btn" style="display:none;" onclick="connectShell()">↺ Reconnect</button>
+    </div>
+    <div id="terminal-container"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script src="/static/js/app.js"></script>
+<script>
+let term, fitAddon, socket, shellOpen = false;
+
+async function initPage() {
+  const me = await getMe();
+  if (!me || me.role !== 'admin') {
+    document.getElementById('auth-overlay').innerHTML =
+      '<div class="auth-box"><h2>Access Denied</h2><p style="color:var(--muted)">Admin accounts only.</p><a href="/" class="btn">← Back</a></div>';
+    return;
+  }
+  renderHeader('/terminal.html');
+
+  // Init xterm
+  term = new Terminal({
+    cursorBlink: true,
+    fontFamily: '"JetBrains Mono", "Fira Mono", monospace',
+    fontSize: 14,
+    theme: {
+      background: '#0a0a0a',
+      foreground: '#e7ecf3',
+      cursor: '#39ff88',
+      selectionBackground: '#39ff8844',
+      black: '#0b0e14', red: '#ff5c5c', green: '#39ff88', yellow: '#ffb84d',
+      blue: '#5b9cff', magenta: '#ff3d81', cyan: '#00d9ff', white: '#e7ecf3',
+    },
+    scrollback: 5000,
+  });
+  fitAddon = new FitAddon.FitAddon();
+  term.loadAddon(fitAddon);
+  term.open(document.getElementById('terminal-container'));
+  fitAddon.fit();
+
+  window.addEventListener('resize', () => {
+    fitAddon.fit();
+    if (socket && shellOpen) {
+      socket.emit('terminal:resize', { rows: term.rows, cols: term.cols });
+    }
+  });
+
+  // Socket
+  socket = io();
+  socket.on('terminal:ready', () => {
+    shellOpen = true;
+    document.getElementById('term-status').textContent = '● Connected';
+    document.getElementById('term-status').style.color = 'var(--accent)';
+    socket.emit('terminal:resize', { rows: term.rows, cols: term.cols });
+  });
+  socket.on('terminal:output', data => term.write(data));
+  socket.on('terminal:error', msg => {
+    term.writeln(`\r\n\x1b[31m${msg}\x1b[0m`);
+    document.getElementById('term-status').textContent = '● Error';
+    document.getElementById('term-status').style.color = 'var(--danger)';
+  });
+  socket.on('terminal:closed', () => {
+    shellOpen = false;
+    term.writeln('\r\n\x1b[33mShell closed.\x1b[0m');
+    document.getElementById('term-status').textContent = '○ Disconnected';
+    document.getElementById('term-status').style.color = 'var(--muted)';
+    document.getElementById('reconnect-btn').style.display = '';
+  });
+
+  term.onData(data => {
+    if (socket && shellOpen) socket.emit('terminal:input', data);
+  });
+}
+
+function connectShell() {
+  document.getElementById('reconnect-btn').style.display = 'none';
+  socket.emit('terminal:connect');
+}
+
+document.getElementById('auth-btn').addEventListener('click', async () => {
+  const pw = document.getElementById('term-pw').value;
+  const msg = document.getElementById('auth-msg');
+  msg.innerHTML = '';
+  try {
+    await api('/api/terminal/auth', { method: 'POST', body: JSON.stringify({ password: pw }) });
+    document.getElementById('auth-overlay').style.display = 'none';
+    document.getElementById('term-status').textContent = '○ Connecting…';
+    connectShell();
+  } catch (e) {
+    msg.innerHTML = `<div class="msg error" style="margin-bottom:10px;">${e.message}</div>`;
+  }
+});
+document.getElementById('term-pw').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('auth-btn').click();
+});
+
+initPage();
+</script>
+</body></html>

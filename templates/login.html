@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Log in — Backroom Arcade</title>
+<link rel="stylesheet" href="/static/css/style.css"></head>
+<body>
+<header class="site-header"><nav class="nav container">
+  <a href="/" class="logo-henry"><span class="cursor"></span>HENRY'S UNBLOCKED GAMES</a>
+  <div class="nav-links" id="nav-links"></div>
+</nav></header>
+<div class="container">
+  <div class="card">
+    <h2>Log in</h2>
+    <div id="msg"></div>
+    <form id="f">
+      <div class="field"><label>Username</label><input id="u" autocomplete="username" required></div>
+      <div class="field"><label>Password</label><input id="p" type="password" autocomplete="current-password" required></div>
+      <button class="btn primary" style="width:100%" type="submit">Log in</button>
+    </form>
+    <p class="hint">No account? <a href="/register.html">Sign up</a></p>
+  </div>
+</div>
+<script src="/static/js/app.js"></script>
+<script>
+renderHeader('/login.html');
+document.getElementById('f').addEventListener('submit', async e => {
+  e.preventDefault();
+  const msg = document.getElementById('msg'); msg.innerHTML='';
+  try {
+    const r = await api('/api/auth/login',{method:'POST',body:JSON.stringify({username:document.getElementById('u').value.trim(),password:document.getElementById('p').value})});
+    window.location.href='/';
+  } catch(e) { msg.appendChild(el('div',{class:'msg error',text:e.message})); }
+});
+</script>
+</body></html>

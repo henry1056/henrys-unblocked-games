@@ -1,0 +1,164 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>613 Tube — Henry's Unblocked Games</title>
+<link rel="stylesheet" href="/static/css/style.css">
+<style>
+.tube-hero{padding:48px 0 24px;text-align:center;}
+.tube-hero h1{font-family:var(--font-display);font-size:clamp(20px,4vw,30px);margin:14px 0;}
+.tube-search-wrap{max-width:640px;margin:0 auto;display:flex;gap:8px;flex-wrap:wrap;}
+.tube-search-wrap input{flex:1;min-width:220px;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:14px 16px;border-radius:8px;font-size:15px;}
+.tube-search-wrap input:focus{outline:2px solid var(--accent);border-color:var(--accent);}
+.tube-tabs{display:flex;justify-content:center;gap:6px;margin:14px 0 0;}
+.tube-tabs button{background:none;border:1px solid var(--border);color:var(--muted);font-family:var(--font-mono);font-size:12px;padding:6px 14px;border-radius:999px;cursor:pointer;}
+.tube-tabs button.active{color:var(--accent);border-color:var(--accent-dim);background:rgba(57,255,136,.08);}
+.player-box{max-width:900px;margin:32px auto;}
+.player-box .frame-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+.player-box iframe{width:100%;aspect-ratio:16/9;border:none;display:block;background:#000;}
+.player-box .p-bar{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
+.player-box .p-bar h3{margin:0;font-size:14px;}
+.filter-badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;justify-content:center;}
+.filter-badges span{font-family:var(--font-mono);font-size:11px;color:var(--accent);border:1px solid var(--accent-dim);padding:3px 10px;border-radius:999px;}
+.recent-wrap{max-width:900px;margin:0 auto 60px;}
+.recent-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;}
+.recent-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;cursor:pointer;transition:border-color .15s,transform .15s;}
+.recent-card:hover{border-color:var(--accent-dim);transform:translateY(-2px);}
+.recent-card img{width:100%;aspect-ratio:16/9;object-fit:cover;display:block;background:#000;}
+.recent-card .rc-info{padding:8px 10px;font-family:var(--font-mono);font-size:11px;color:var(--muted);}
+.empty-player{aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;color:var(--muted);font-family:var(--font-mono);font-size:13px;}
+</style>
+</head><body>
+<header class="site-header"><nav class="nav container">
+  <a href="/" class="logo-henry"><span class="cursor"></span><span class="h-name">HENRY'S</span>&nbsp;UNBLOCKED GAMES</a>
+  <div class="nav-links" id="nav-links"></div>
+</nav></header>
+
+<div class="tube-hero container">
+  <div class="eyebrow">613 TUBE</div>
+  <h1>Watch YouTube. Nothing Else.</h1>
+  <p class="sub" style="color:var(--muted);max-width:520px;margin:0 auto;">Paste any YouTube link or video ID and watch it clean — no related videos, no comments, no rabbit hole.</p>
+  <div class="tube-search-wrap">
+    <input id="tube-input" placeholder="Paste a YouTube link or video ID…" autocomplete="off">
+    <button class="btn primary" id="tube-go">▶ Watch</button>
+  </div>
+  <div class="filter-badges">
+    <span>✕ No related videos</span>
+    <span>✕ No comments</span>
+    <span>✕ No suggested overlay</span>
+    <span>✕ No autoplay-into-next</span>
+  </div>
+</div>
+
+<div class="player-box" id="player-box">
+  <div class="frame-wrap">
+    <div class="p-bar">
+      <h3 id="player-title">Nothing playing</h3>
+      <span style="font-family:var(--font-mono);font-size:11px;color:var(--muted);" id="player-sub"></span>
+    </div>
+    <div id="player-slot">
+      <div class="empty-player">
+        <div style="font-size:32px;">📺</div>
+        <div>Paste a link above to start watching</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="recent-wrap container">
+  <div class="section-title">Recently Watched</div>
+  <div class="recent-grid" id="recent-grid">
+    <div class="empty-state" style="grid-column:1/-1;">Nothing watched yet on this device.</div>
+  </div>
+</div>
+
+<footer class="site-footer">613 Tube — the video, and just the video.</footer>
+<script src="/static/js/app.js"></script>
+<script>
+renderHeader('/613tube.html');
+
+function extractVideoId(input) {
+  input = input.trim();
+  // Bare 11-char video ID
+  if (/^[a-zA-Z0-9_-]{11}$/.test(input)) return input;
+  try {
+    const url = new URL(input.includes('://') ? input : 'https://' + input);
+    if (url.hostname.includes('youtu.be')) {
+      return url.pathname.slice(1).split('/')[0];
+    }
+    if (url.hostname.includes('youtube.com')) {
+      if (url.pathname === '/watch') return url.searchParams.get('v');
+      if (url.pathname.startsWith('/embed/')) return url.pathname.split('/')[2];
+      if (url.pathname.startsWith('/shorts/')) return url.pathname.split('/')[2];
+    }
+  } catch(_) {}
+  return null;
+}
+
+function loadVideo(id, pushHistory = true) {
+  if (!id) return;
+  const slot = document.getElementById('player-slot');
+  slot.innerHTML = '';
+  const iframe = document.createElement('iframe');
+  // youtube-nocookie + rel=0 + modestbranding strips most of the distraction layer
+  iframe.src = `https://www.youtube-nocookie.com/embed/${id}?rel=0&modestbranding=1&iv_load_policy=3&fs=1`;
+  iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen';
+  iframe.allowFullscreen = true;
+  slot.appendChild(iframe);
+
+  document.getElementById('player-title').textContent = 'Now Playing';
+  document.getElementById('player-sub').textContent = id;
+
+  if (pushHistory) {
+    const url = new URL(location.href);
+    url.searchParams.set('v', id);
+    history.replaceState(null, '', url);
+    saveRecent(id);
+  }
+}
+
+function saveRecent(id) {
+  let recent = [];
+  try { recent = JSON.parse(localStorage.getItem('613tube_recent') || '[]'); } catch(_) {}
+  recent = recent.filter(x => x !== id);
+  recent.unshift(id);
+  recent = recent.slice(0, 12);
+  localStorage.setItem('613tube_recent', JSON.stringify(recent));
+  renderRecent();
+}
+
+function renderRecent() {
+  let recent = [];
+  try { recent = JSON.parse(localStorage.getItem('613tube_recent') || '[]'); } catch(_) {}
+  const grid = document.getElementById('recent-grid');
+  grid.innerHTML = '';
+  if (!recent.length) {
+    grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1;">Nothing watched yet on this device.</div>';
+    return;
+  }
+  for (const id of recent) {
+    const card = el('div', { class: 'recent-card' }, [
+      el('img', { src: `https://i.ytimg.com/vi/${id}/mqdefault.jpg`, alt: id }),
+      el('div', { class: 'rc-info', text: id }),
+    ]);
+    card.addEventListener('click', () => { loadVideo(id); window.scrollTo({top:0,behavior:'smooth'}); });
+    grid.appendChild(card);
+  }
+}
+
+document.getElementById('tube-go').addEventListener('click', () => {
+  const input = document.getElementById('tube-input').value;
+  const id = extractVideoId(input);
+  if (!id) { alert('Could not find a valid YouTube video ID in that input.'); return; }
+  loadVideo(id);
+});
+document.getElementById('tube-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('tube-go').click();
+});
+
+// Load from ?v= param if present (shareable links)
+const params = new URLSearchParams(location.search);
+const initialId = params.get('v');
+if (initialId) loadVideo(initialId, false);
+
+renderRecent();
+</script>
+</body></html>
